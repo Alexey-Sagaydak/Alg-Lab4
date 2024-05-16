@@ -1,78 +1,142 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
+#include <clocale>
 
-struct TreeNode {
-    int key;
-    struct TreeNode* left;
-    struct TreeNode* right;
+struct node // структура дл€ представлени€ узлов дерева
+{
+	int key;
+	int size;
+	node* left;
+	node* right;
+	node(int k) { key = k; left = right = 0; size = 1; }
 };
 
-struct TreeNode* create_node(int key) {
-    struct TreeNode* node = (struct TreeNode*)malloc(sizeof(struct TreeNode));
-    if (node != NULL) {
-        node->key = key;
-        node->left = NULL;
-        node->right = NULL;
-    }
-    return node;
+node* find(node* p, int k);
+node* insert(node* p, int k);
+int getsize(node* p);
+void fixsize(node* p);
+node* rotateright(node* p);
+node* rotateleft(node* q);
+node* insertroot(node* p, int k);
+node* insertroot(node* p, int k);
+node* join(node* p, node* q);
+int height(node* p);
+
+node* find(node* p, int k) // поиск ключа k в дереве p
+{
+    if (!p) return 0; // в пустом дереве можно не искать
+    if (k == p->key)
+        return p;
+    if (k < p->key)
+        return find(p->left, k);
+    else
+        return find(p->right, k);
 }
 
-struct TreeNode* insert(struct TreeNode* root, int key) {
-    if (root == NULL) {
-        return create_node(key);
-    }
-    if (key < root->key) {
-        root->left = insert(root->left, key);
-    }
-    else {
-        root->right = insert(root->right, key);
-    }
-    return root;
+node* insert(node* p, int k) // рандомизированна€ вставка нового узла с ключом k в дерево p
+{
+	if (!p) return new node(k);
+	if (rand() % (p->size + 1) == 0)
+		return insertroot(p, k);
+	if (p->key > k)
+		p->left = insert(p->left, k);
+	else
+		p->right = insert(p->right, k);
+	fixsize(p);
+	return p;
 }
 
-int max(int a, int b) {
-    return (a > b) ? a : b;
+int getsize(node* p) // обертка дл€ пол€ size, работает с пустыми деревь€ми (t=NULL)
+{
+	if (!p) return 0;
+	return p->size;
 }
 
-int height(struct TreeNode* node) {
-    if (node == NULL) {
-        return 0;
-    }
-    int left_height = height(node->left);
-    int right_height = height(node->right);
-    return max(left_height, right_height) + 1;
+void fixsize(node* p) // установление корректного размера дерева
+{
+	p->size = getsize(p->left) + getsize(p->right) + 1;
 }
 
-void random_binary_tree(int keys[], int num_elements, struct TreeNode** root) {
-    *root = NULL;
-    for (int i = 0; i < num_elements; i++) {
-        *root = insert(*root, keys[i]);
-    }
+node* rotateright(node* p) // правый поворот вокруг узла p
+{
+	node* q = p->left;
+	if (!q) return p;
+	p->left = q->right;
+	q->right = p;
+	q->size = p->size;
+	fixsize(p);
+	return q;
 }
 
-int experiment(int num_elements) {
-    int* keys = (int*)malloc(num_elements * sizeof(int));
-    if (keys == NULL) {
-        return -1;
-    }
-    for (int i = 0; i < num_elements; i++) {
-        keys[i] = rand() % (num_elements * 10) + 1;
-    }
-    struct TreeNode* root;
-    random_binary_tree(keys, num_elements, &root);
-    free(keys);
-    return height(root);
+node* rotateleft(node* q) // левый поворот вокруг узла q
+{
+	node* p = q->right;
+	if (!p) return q;
+	q->right = p->left;
+	p->left = q;
+	p->size = q->size;
+	fixsize(q);
+	return p;
 }
 
-int main() {
-    int num_elements_list[] = { 10, 100, 1000 };
-    int num_experiments = sizeof(num_elements_list) / sizeof(num_elements_list[0]);
+node* insertroot(node* p, int k) // вставка нового узла с ключом k в корень дерева p 
+{
+	if (!p) return new node(k);
+	if (k < p->key)
+	{
+		p->left = insertroot(p->left, k);
+		return rotateright(p);
+	}
+	else
+	{
+		p->right = insertroot(p->right, k);
+		return rotateleft(p);
+	}
+}
 
-    for (int i = 0; i < num_experiments; i++) {
-        int num_elements = num_elements_list[i];
-        int tree_height = experiment(num_elements);
-        printf("For %d elements, tree height: %d\n", num_elements, tree_height);
-    }
+node* join(node* p, node* q) // объединение двух деревьев
+{
+	if (!p) return q;
+	if (!q) return p;
+	if (rand() % (p->size + q->size) < p->size)
+	{
+		p->right = join(p->right, q);
+		fixsize(p);
+		return p;
+	}
+	else
+	{
+		q->left = join(p, q->left);
+		fixsize(q);
+		return q;
+	}
+}
 
-    return 0;
+int height(node* p) // вычисление высоты дерева
+{
+	if (!p) return 0;
+	int left_height = height(p->left);
+	int right_height = height(p->right);
+	return 1 + (left_height > right_height ? left_height : right_height);
+}
+
+int main()
+{
+	setlocale(LC_ALL, "Rus");
+	srand(time(NULL)); // инициализаци€ генератора случайных чисел
+
+	int num_elements[] = { 10, 100, 1000 }; // массив дл€ количества элементов
+	for (int i = 0; i < 3; i++)
+	{
+		node* root = NULL; // начальное пустое дерево
+		for (int j = 0; j < num_elements[i]; j++)
+		{
+			root = insert(root, rand() % 1000000); // вставка случайного элемента
+		}
+
+		printf("¬ысота дерева с %d элементами: %d\n", num_elements[i], height(root));
+	}
+
+	return 0;
 }
